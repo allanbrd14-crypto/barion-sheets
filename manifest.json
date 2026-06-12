@@ -1,0 +1,11 @@
+{
+  "name": "Barion Sheets",
+  "short_name": "Barion",
+  "description": "Controle de Uso e Consumo",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#181311",
+  "theme_color": "#D4A25A",
+  "orientation": "portrait",
+  "icons": []
+}
