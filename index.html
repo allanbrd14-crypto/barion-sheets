@@ -3,6 +3,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+ <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#D4A25A">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Barion Sheets V4 + Compartilhar</title>
 <style>
@@ -263,5 +265,10 @@ async function compartilhar(){
 
 render();
 </script>
+ <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+ </script>
 </body>
 </html>
