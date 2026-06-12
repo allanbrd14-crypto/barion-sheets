@@ -1,0 +1,267 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barion Sheets V4 + Compartilhar</title>
+<style>
+:root{--bg:#181311;--panel:#241b17;--panel2:#32241e;--accent:#D4A25A;--text:#F8F6F2;--muted:#B8AEA5;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif}
+body{background:linear-gradient(180deg,#2b1c16,#181311,#0f0c0a);color:var(--text);padding:20px;max-width:900px;margin:auto}
+.header{padding:20px;border-radius:28px;background:rgba(36,27,23,.9);border:1px solid #3a2c25;margin-bottom:18px}
+.logo{font-size:40px;font-weight:800;color:var(--accent)}
+.sub{color:var(--muted)}
+.card{background:var(--panel);border:1px solid #3a2c25;border-radius:24px;padding:20px;margin:12px 0;cursor:pointer}
+.card:hover{background:var(--panel2)}
+.hidden{display:none}
+input{width:100%;padding:14px;border-radius:14px;border:1px solid #3a2c25;background:#130f0d;color:white;margin:8px 0}
+button{background:var(--accent);border:none;border-radius:14px;padding:12px 18px;font-weight:700;cursor:pointer;margin-right:8px}
+table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:20px;overflow:hidden}
+th{background:#33261f;color:var(--accent)}
+th,td{padding:12px;border-bottom:1px solid #3a2c25;text-align:left}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+</head>
+<body>
+
+<div id="home">
+<div class="header">
+<div class="logo">Barion Sheets</div>
+<div class="sub">Uso e Consumo</div>
+</div>
+
+<div class="card" onclick="mostrarNova()">
+<h2>➕ Nova Planilha</h2>
+</div>
+
+<div id="novaArea" class="hidden card">
+<input id="nomePlanilha" placeholder="Nome da planilha">
+<button onclick="criar()">Criar Planilha</button>
+</div>
+
+<div class="card">
+<h2>📂 Minhas Planilhas</h2>
+<div id="lista"></div>
+</div>
+</div>
+
+<div id="editor" class="hidden">
+<button onclick="voltar()">← Voltar</button>
+<div class="header" style="margin-top:10px">
+<div id="titulo" class="logo" style="font-size:30px"></div><div style="display:flex;gap:10px;margin-top:12px"><div class="card" style="flex:1;padding:10px;text-align:center">📦 <span id="statReg">0</span></div><div class="card" style="flex:1;padding:10px;text-align:center">🏷️ <span id="statTroca">0</span></div></div></div>
+
+<input id="pos" placeholder="Posição">
+<input id="cod" placeholder="Código">
+
+<input id="qtd" placeholder="Quantidade">
+<div id="trocaCard" onclick="alternarTroca()"
+style="background:#241b17;border:1px solid #3a2c25;border-radius:18px;padding:14px;margin:10px 0;opacity:.7;cursor:pointer">
+🏷️ Trocar identificação
+<span id="trocaStatus" style="float:right;font-weight:bold">OFF</span>
+</div>
+<input id="novaQtd" placeholder="Nova quantidade" style="display:none">
+
+
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+<button style="flex:1" onclick="addRegistro()">Adicionar</button>
+<button style="flex:1" onclick="compartilhar()">📤 Compartilhar</button>
+<button style="flex:1" onclick="listarTrocas()">🏷️ Trocas</button><button style="flex:1" onclick="compartilharTrocas()">📤 Compartilhar Trocas</button>
+</div>
+
+
+<br><br>
+
+<table>
+<thead>
+<tr>
+<th>Posição</th>
+<th>Código</th>
+<th>Quantidade</th>
+<th>Ações</th>
+</tr>
+</thead>
+<tbody id="tb"></tbody>
+</table>
+</div>
+
+<script>
+let atual=-1;
+let trocaMarcada=false;
+
+function alternarTroca(){
+ trocaMarcada=!trocaMarcada;
+ document.getElementById('novaQtd').style.display=trocaMarcada?'block':'none';
+ document.getElementById('trocaStatus').innerText=trocaMarcada?'ON':'OFF';
+ document.getElementById('trocaCard').style.opacity=trocaMarcada?1:0.7;
+}
+function db(){return JSON.parse(localStorage.getItem('barion_sheets')||'[]')}
+function save(d){localStorage.setItem('barion_sheets',JSON.stringify(d))}
+
+function mostrarNova(){novaArea.classList.remove('hidden')}
+
+function criar(){
+ const nome=nomePlanilha.value.trim();
+ if(!nome) return;
+ let d=db();
+ d.push({nome,registros:[]});
+ save(d);
+ nomePlanilha.value='';
+ render();
+}
+
+function render(){
+ let d=db(), html='';
+ d.forEach((p,i)=>{
+  html+=`<div class="card"><div onclick="abrir(${i})"><strong>${p.nome}</strong><br>${p.registros.length} registros</div><button style="float:right;margin-top:-5px" onclick="event.stopPropagation();excluirPlanilha(${i})">🗑</button></div>`;
+ });
+ lista.innerHTML=html||'<p>Nenhuma planilha criada.</p>';
+}
+
+
+function excluirPlanilha(i){
+ if(!confirm('Excluir esta planilha?')) return;
+ let d=db();
+ d.splice(i,1);
+ save(d);
+ render();
+}
+
+function listarTrocas(){
+ let planilha=db()[atual];
+ let itens=planilha.registros.filter(r=>r.t);
+ if(!itens.length){ alert('Nenhum item marcado para troca de identificação.'); return; }
+ let txt='ITENS PARA TROCA DE IDENTIFICAÇÃO\n\n';
+ itens.forEach(r=> txt += r.p + ' - ' + r.c + (r.nq?(' | Nova Qtd: '+r.nq):'') + '\n');
+ alert(txt);
+}
+
+async function compartilharTrocas(){
+ let planilha=db()[atual];
+ let itens=planilha.registros.filter(r=>r.t);
+ if(!itens.length){ alert('Nenhum item marcado para troca de identificação.'); return; }
+
+ let txt='ITENS PARA TROCA DE IDENTIFICAÇÃO\n\n';
+ itens.forEach(r=> txt += r.p + ' - ' + r.c + (r.nq?(' | Nova Qtd: '+r.nq):'') + '\n');
+
+ if(navigator.share){
+   try{
+     await navigator.share({
+       title:'Troca de Identificação',
+       text:txt
+     });
+   }catch(e){}
+ }else{
+   alert(txt);
+ }
+}
+
+function abrir(i){
+
+ atual=i;
+ home.classList.add('hidden');
+ editor.classList.remove('hidden');
+ titulo.innerText=db()[i].nome;
+ tabela();
+}
+
+function voltar(){
+ editor.classList.add('hidden');
+ home.classList.remove('hidden');
+ render();
+}
+
+function addRegistro(){
+ let d=db();
+ if(!pos.value||!cod.value||!qtd.value) return;
+ d[atual].registros.push({p:pos.value,c:cod.value,q:qtd.value,t:trocaMarcada,nq:(novaQtd.value||'')});
+ save(d);
+ pos.value=''; cod.value=''; qtd.value=''; trocaMarcada=false; document.getElementById('trocaStatus').innerText='OFF'; document.getElementById('trocaCard').style.opacity=0.7; document.getElementById('novaQtd').style.display='none'; novaQtd.value='';
+ tabela();
+}
+
+function del(i){
+ let d=db();
+ d[atual].registros.splice(i,1);
+ save(d);
+ tabela();
+}
+
+function tabela(){
+ let d=db()[atual];
+ let html='';
+ d.registros.forEach((r,i)=>{
+  html+=`<tr><td>${r.p}</td><td>${r.c}</td><td>${r.q}</td><td><button onclick="del(${i})">Excluir</button></td></tr>`;
+ });
+ tb.innerHTML=html;document.getElementById('statReg').innerText=d.registros.length;document.getElementById('statTroca').innerText=d.registros.filter(r=>r.t).length;
+}
+
+
+async function compartilhar(){
+ let planilha=db()[atual];
+
+ const wb = new ExcelJS.Workbook();
+
+ const ws = wb.addWorksheet(planilha.nome || 'Uso e Consumo');
+ ws.columns = [
+   {header:'Posição', key:'p', width:18},
+   {header:'Código', key:'c', width:18},
+   {header:'Quantidade', key:'q', width:28}
+ ];
+
+ const h=ws.getRow(1);
+ h.height=24;
+ h.eachCell(c=>{
+   c.font={bold:true,color:{argb:'FFFFFFFF'}};
+   c.alignment={horizontal:'center'};
+   c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF7A5537'}};
+   c.border={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
+ });
+
+ planilha.registros
+   .sort((a,b)=>String(a.p).localeCompare(String(b.p)))
+   .forEach((r,i)=>{
+      const row=ws.addRow({p:r.p,c:r.c,q:r.q});
+      row.eachCell(cell=>{
+        cell.border={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
+        cell.fill={type:'pattern',pattern:'solid',
+          fgColor:{argb:i%2===0?'FFF1E6D8':'FFFFFFFF'}};
+      });
+      row.getCell(1).alignment={horizontal:'center'};
+      row.getCell(2).alignment={horizontal:'center'};
+      row.getCell(3).alignment={horizontal:'right'};
+   });
+
+ ws.autoFilter='A1:C1';
+ ws.views=[{state:'frozen',ySplit:1}];
+
+ const trocas=wb.addWorksheet('Troca Identificação');
+ trocas.columns=[
+   {header:'Posição',key:'p',width:18},
+   {header:'Código',key:'c',width:18},
+   {header:'Nova Quantidade',key:'nq',width:20}
+ ];
+ trocas.getRow(1).eachCell(c=>{
+   c.font={bold:true,color:{argb:'FFFFFFFF'}};
+   c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF7A5537'}};
+ });
+
+ planilha.registros.filter(r=>r.t).forEach(r=>{
+   trocas.addRow({p:r.p,c:r.c,nq:r.nq||''});
+ });
+
+ const buffer=await wb.xlsx.writeBuffer();
+ const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);
+ a.download=(planilha.nome||'Uso e Consumo')+'.xlsx';
+ a.click();
+}
+
+
+render();
+</script>
+</body>
+</html>
