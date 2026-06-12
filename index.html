@@ -254,12 +254,26 @@ async function compartilhar(){
    trocas.addRow({p:r.p,c:r.c,nq:r.nq||''});
  });
 
- const buffer=await wb.xlsx.writeBuffer();
- const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
- const a=document.createElement('a');
- a.href=URL.createObjectURL(blob);
- a.download=(planilha.nome||'Uso e Consumo')+'.xlsx';
- a.click();
+ const buffer = await wb.xlsx.writeBuffer();
+
+const file = new File(
+  [buffer],
+  (planilha.nome || 'Uso e Consumo') + '.xlsx',
+  {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  }
+);
+
+if (navigator.canShare && navigator.canShare({ files: [file] })) {
+  await navigator.share({
+    title: planilha.nome || 'Uso e Consumo',
+    files: [file]
+  });
+} else {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file);
+  a.download = file.name;
+  a.click();
 }
 
 
